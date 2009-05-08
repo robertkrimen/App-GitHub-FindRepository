@@ -1,0 +1,14 @@
+#!/bin/bash
+
+function github-find-repository() {
+    local pinger=`which git-ls-remote`
+    if [ "$pinger" == "" ]; then pinger=`which git-peek-remote`; fi
+    if [ "$pinger" == "" ]; then echo "Couldn't find pinger (git-ls-remote or git-peek-remote)"; return -1; fi
+    local repository=$1
+    if [ "`$pinger $repository 2>/dev/null`" ]; then echo $repository; return 0; fi
+    repository=`echo $repository | tr "[:upper:]" "[:lower:]" `
+    if [ "`$pinger $repository 2>/dev/null`" ]; then echo $repository; return 0; fi
+    return -1
+}
+
+github-find-repository $*

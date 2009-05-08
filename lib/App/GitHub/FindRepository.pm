@@ -5,7 +5,7 @@ use strict;
 
 =head1 NAME
 
-App::GitHub::FindRepository - Determine the right case (mixed or lower) for a GitHub repository
+App::GitHub::FindRepository - Determine the right case for a GitHub repository
 
 =head1 VERSION
 

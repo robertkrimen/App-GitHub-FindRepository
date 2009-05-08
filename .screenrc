@@ -1,0 +1,5 @@
+source $HOME/.screenrc
+
+screen 0
+stuff "[ -s Session.vim ] || vim -c 'mks!' -c 'quit'; vim -S \015"
+screen 1

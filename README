@@ -1,0 +1,73 @@
+NAME
+    App::GitHub::FindRepository
+
+VERSION
+    Version 0.01
+
+SYNOPSIS
+        github-find-repository git://github.com/robertkrimen/DBIx-Deploy.git
+        # git://github.com/robertkrimen/dbix-deploy.git
+
+        github-find-repository robertkrimen,DBIx-Deploy
+        # git://github.com/robertkrimen/dbix-deploy.git
+
+        github-find-repository --pinger=./bin/git-ls-remote ...
+
+        # ... or ...
+
+        use App::GitHub::FindRepository
+
+        my $url = App::GitHub::FindRepository->find( git://github.com/robertkrimen/DBIx-Deploy.git )
+        # git://github.com/robertkrimen/dbix-deploy.git
+
+DESCRIPTION
+    GitHub recently made a change that now allows mixed-case repository
+    names. Unfortunately, their git daemon will not find the right
+    repository given the wrong case.
+
+    App::GitHub::FindRepository ("github-find-repository") will first
+    attempt to ping the mixed-case version, and, failing that, will attempt
+    to ping the lowercase version. It will return/print the valid repository
+    url, if any.
+
+AUTHOR
+    Robert Krimen, "<rkrimen at cpan.org>"
+
+BUGS
+    Please report any bugs or feature requests to
+    "bug-app-github-findrepository at rt.cpan.org", or through the web
+    interface at
+    <http://rt.cpan.org/NoAuth/ReportBug.html?Queue=App-GitHub-FindRepositor
+    y>. I will be notified, and then you'll automatically be notified of
+    progress on your bug as I make changes.
+
+SUPPORT
+    You can find documentation for this module with the perldoc command.
+
+        perldoc App::GitHub::FindRepository
+
+    You can also look for information at:
+
+    *   RT: CPAN's request tracker
+
+        <http://rt.cpan.org/NoAuth/Bugs.html?Dist=App-GitHub-FindRepository>
+
+    *   AnnoCPAN: Annotated CPAN documentation
+
+        <http://annocpan.org/dist/App-GitHub-FindRepository>
+
+    *   CPAN Ratings
+
+        <http://cpanratings.perl.org/d/App-GitHub-FindRepository>
+
+    *   Search CPAN
+
+        <http://search.cpan.org/dist/App-GitHub-FindRepository/>
+
+ACKNOWLEDGEMENTS
+COPYRIGHT & LICENSE
+    Copyright 2009 Robert Krimen, all rights reserved.
+
+    This program is free software; you can redistribute it and/or modify it
+    under the same terms as Perl itself.
+

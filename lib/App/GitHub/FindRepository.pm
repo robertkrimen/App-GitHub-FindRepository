@@ -9,11 +9,11 @@ App::GitHub::FindRepository - Determine the right case for a GitHub repository
 
 =head1 VERSION
 
-Version 0.04
+Version 0.05
 
 =cut
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 =head1 SYNOPSIS
 
@@ -121,6 +121,8 @@ If you do not want to install App::GitHub::FindRepository, here is a bash equiva
 
 =cut
 
+use App::GitHub::FindRepository::Repository;
+
 use Getopt::Long;
 use Env::Path qw/PATH/;
 
@@ -145,7 +147,7 @@ sub do_usage(;$) {
     warn $error if $error;
     warn <<_END_;
 
-Usage: github-find-repository [--pinger <pinger>] [--getter <getter>] ... <repository>
+Usage: github-find-repository [--pinger <pinger> --getter <getter> --output <output>] ... <repository>
 
     --pinger        The pinger to use (default is either git-ls-remote or git-peek-remote)
 
@@ -153,6 +155,16 @@ Usage: github-find-repository [--pinger <pinger>] [--getter <getter>] ... <repos
 
     --git-protocol  Don't try to determine the repository by sniffing HTML, just use git://
                     NOTE: This mode will only check the given casing then lowercase
+
+    --output        One of: URL, base, name, public, private
+
+                    Given "http://github.com/robertkrimen/aPp-giTHub-findRepoSitory.git"
+
+                    URL      http://github.com/robertkrimen/App-GitHub-FindRepository.git
+                    public   git://github.com/robertkrimen/App-GitHub-FindRepository.git
+                    private  git\@github.com:robertkrimen/App-GitHub-FindRepository.git
+                    base     robertkrimen/App-GitHub-FindRepository
+                    name     App-GitHub-FindRepository
 
     <repository>    The repository to test, can be like:
 
@@ -169,9 +181,15 @@ _END_
     exit -1 if $error;
 }
 
-sub do_found($) {
+sub do_found($$) {
+    my $output = shift;
     my $repository = shift;
-    print "$repository\n";
+    if ($output) {
+        print $repository->$output, "\n";
+    }
+    else {
+        print "$repository\n";
+    }
     exit 0;
 }
 
@@ -228,42 +246,27 @@ sub getter {
     return undef;
 }
 
-sub normalize_repository($) {
-    my $repository = shift;
-    my $public = $repository !~ m/^\s*git\@/;
-    $repository =~ s/ //g;
-    $repository =~ s/,/\//g;
-    $repository = "$repository.git" unless $repository =~ m/\.git$/;
-    $repository = "github.com/$repository" unless $repository =~ m/github\.com/;
-    $repository = "git://$repository" unless $repository =~ m/git(?::\/\/|@)/;
-    return ($repository, $public);
-}
-
-sub test_repository($) {
-    my $repository = shift;
-    $repository =~ s!^git@!git://!;
-    return $repository;
+sub parse_repository {
+    my $self = shift;
+    return App::GitHub::FindRepository::Repository->parse( @_ );
 }
 
 sub find {
     my $self = shift;
-    my $original_repository = my $repository = shift;
+    my $repository = $self->parse_repository( shift );
     my %given = @_;
     my $getter = $self->getter( $given{getter} );
     my $pinger = $given{pinger};
 
-    die "No repository given\n" unless defined $repository && length $repository;
+    die "No repository given\n" unless $repository;
     if (! $getter ) {
         warn "Unable to use/find LWP or curl\n";
         warn "Falling back to git protocol\n";
-        return $self->find_by_git( $original_repository, pinger => $pinger );
+        return $self->find_by_git( $repository, pinger => $pinger );
     }
 
-    my ($base, $public) = normalize_repository $repository;
-    $base =~ s!^git(?:://|@)github.com/!!;
-    $base =~ s!\.git!!;
-
-    my $url = "http://github.com/$base";
+    my $url = $repository->home;
+    my $base = $repository->base;
 
     my $content;
     eval {
@@ -274,7 +277,7 @@ sub find {
         chomp $error;
         warn "Failed GET $url since: $error\n";
         warn "Falling back to git protocol\n";
-        return $self->find_by_git( $original_repository, pinger => $pinger );
+        return $self->find_by_git( $repository, pinger => $pinger );
     }
 
     my ($canonical) = $content =~ m/\/($base)\//i;
@@ -282,32 +285,30 @@ sub find {
     unless ($canonical) {
         warn "Failed to find \"/$base/\" in content of size ", length $content, "\n";
         warn "Falling back to git protocol\n";
-        return $self->find_by_git( $original_repository, pinger => $pinger );
+        return $self->find_by_git( $repository, pinger => $pinger );
     }
 
-    $repository = "github.com/$canonical.git";
-    $repository = $public ? "git://$repository" : "git\@$repository";
+    $repository->base( $canonical );
+
     return $repository;
 }
 
 sub find_by_git {
     my $self = shift;
-    my $repository = shift;
+    my $repository = $self->parse_repository( shift );
     my %given = @_;
     my $pinger = $given{pinger} || $self->pinger;
 
-    die "No repository given\n" unless defined $repository && length $repository;
+    die "No or invalid repository given\n" unless $repository;
     die "No pinger!\n" unless $pinger;
 
-    my $public;
-    ($repository, $public) = normalize_repository $repository;
-    my $test_repository = test_repository $repository;
+    my $test_repository = $repository->test;
 
     return $repository if !system( "$pinger $test_repository 1>/dev/null 2>/dev/null" );
     
-    if ($repository =~ m/[A-Z]/) {
-        my $repository = lc $repository;
-        my $test_repository = test_repository $repository;
+    if ($repository->base =~ m/[A-Z]/) {
+        $repository->base( lc $repository->base );
+        my $test_repository = $repository->test;
         return $repository if !system( "$pinger $test_repository 1>/dev/null 2>/dev/null" );
     }
 
@@ -317,10 +318,11 @@ sub find_by_git {
 sub run {
     my $self = shift;
     
-    my ($getter, $pinger, $git_protocol);
+    my ($getter, $pinger, $git_protocol, $output);
     GetOptions(
         'getter=s' => \$getter,
         'pinger=s' => \$pinger,
+        'output=s' => \$output,
         'git-protocol' => \$git_protocol,
     );
 
@@ -332,6 +334,13 @@ sub run {
 $0: You need to specify a repository
 _END_
 
+    if ($output) {
+        $output = lc $output;
+        $output =~ m/^(base|public|private|url|name)$/ or do_usage <<_END_;
+$0: Unregonized output $output
+_END_
+    }
+
     eval {
         my $repository = $repository;
         if ($git_protocol) {
@@ -341,7 +350,7 @@ _END_
             $repository = $self->find( $repository, getter => $getter, pinger => $pinger );
         }
 
-        do_found $repository if $repository;
+        do_found $output, $repository if $repository;
     };
     if ($@ =~ m/No pinger!/) {
         do_usage <<_END_;

@@ -12,6 +12,7 @@ inc/Module/Install/Win32.pm
 inc/Module/Install/WriteAll.pm
 inc/Module/Install/Scripts.pm
 lib/App/GitHub/FindRepository.pm
+lib/App/GitHub/FindRepository/Repository.pm
 META.yml
 script/github-find-repository
 t/00-load.t

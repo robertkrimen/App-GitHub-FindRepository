@@ -30,6 +30,7 @@ _END_
     map { my ($pk, $vr) = split m/\s/; requires $pk => $vr || 0 } grep { ! /^\s*#/ } split m/\n/, <<_END_;
 Env::Path
 Getopt::Long
+Scalar::Util
 _END_
 }
 

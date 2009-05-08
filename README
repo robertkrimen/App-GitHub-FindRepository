@@ -3,7 +3,7 @@ NAME
     repository
 
 VERSION
-    Version 0.04
+    Version 0.05
 
 SYNOPSIS
         github-find-repository git://github.com/robertkrimen/Doc-Simply.git

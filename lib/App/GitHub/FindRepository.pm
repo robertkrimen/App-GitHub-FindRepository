@@ -9,11 +9,11 @@ App::GitHub::FindRepository - Determine the right case (mixed or lower) for a Gi
 
 =head1 VERSION
 
-Version 0.02
+Version 0.03
 
 =cut
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 =head1 SYNOPSIS
 
@@ -37,21 +37,26 @@ our $VERSION = '0.02';
 GitHub recently made a change that now allows mixed-case repository names. Unfortunately, their git daemon
 will not find the right repository given the wrong case.
 
-L<App::GitHub::FindRepository> (C<github-find-repository>) will first attempt to ping the mixed-case version, and,
-failing that, will attempt to ping the lowercase version. It will return/print the valid repository url, if any
+L<App::GitHub::FindRepository> (C<github-find-repository>) will interrogate the HTML page for the repository,
+looking for the "right" repository name in a case insensitive manner
+
+If LWP is not installed and curl is not available, then the finder will fallback to using the git protocol (via git-ls-remote or git-peek-remote).
+It will first attempt to ping the mixed-case version, and, failing that, will attempt to ping the lowercase version.
+
+In either case, it will return/print the valid repository url, if any
 
 =head1 CAVEAT
+
+When finding via the git protocol, the following applies:
 
 Given a mixed-case repository, the find routine will try the mixed-case once, then the lowercase. It will not find anything
 else
 
-    github-find-repository robertkrimen/Doc-Simply
+    github-find-repository --git-protocol robertkrimen/Doc-Simply
 
 ...will work, as long as the real repository is C<robertkrimen/Doc-Simply.git> or C<robertkrimen/doc-simply.git>
 
 If the real repository is C<robertkrimen/dOc-sImPlY.git> then the finder will NOT see it
-
-...that being said, let me know if you want/need something that is more findy
 
 =head1 INSTALL
 
@@ -65,9 +70,14 @@ You can also try using the bash script below if you need a quick-fix
 
 A commandline application that will print out the the repository with the right casing
 
-    Usage: github-find-repository [--pinger <pinger>] <repository>
+    Usage: github-find-repository [--pinger <pinger>] [--getter <getter>] ... <repository>
 
         --pinger        The pinger to use (default is either git-ls-remote or git-peek-remote)
+
+        --getter        The getter to use (default is LWP then curl)
+
+        --git-protocol  Don't try to determine the repository by sniffing HTML, just use git://
+                        NOTE: This mode will only check the given casing then lowercase
 
         <repository>    The repository to test, can be like:
 
@@ -75,13 +85,24 @@ A commandline application that will print out the the repository with the right 
                         robertkrimen/App-GitHub-FindRepository.git
                         robertkrimen,App-GitHub-FindRepository
 
-=head2 $repository = AppGitHub::FindRepository->find( <repository> [, <pinger>] )
+    For example:
+
+        github-find-repository --getter curl robertkrimen,aPp-giTHuB-findRepOsitory
+
+
+=head2 $repository = AppGitHub::FindRepository->find( <repository> [, pinger => <pinger>, getter => <getter>] )
 
 Given a mixed-case repository URI, it will return the version with the right case
 
+=head2 $repository = AppGitHub::FindRepository->find_by_git( <repository> [, pinger => <pinger>] )
+
+Given a mixed-case repository URI, it will return the version with the right case, but only using the git protocol
+
+NOTE: This method will only check the given casing then lowercase. See CAVEAT
+
 =head2 A bash function as an alternative
 
-If you do not want to install App::GitHub::FindRepository, here is a bash equivalent:
+If you do not want to install App::GitHub::FindRepository, here is a bash equivalent (using the git protocol, see CAVEAT):
 
     #!/bin/bash
 
@@ -124,15 +145,24 @@ sub do_usage(;$) {
     warn $error if $error;
     warn <<_END_;
 
-Usage: github-find-repository [--pinger <pinger>] <repository>
+Usage: github-find-repository [--pinger <pinger>] [--getter <getter>] ... <repository>
 
     --pinger        The pinger to use (default is either git-ls-remote or git-peek-remote)
+
+    --getter        The getter to use (default is LWP then curl)
+
+    --git-protocol  Don't try to determine the repository by sniffing HTML, just use git://
+                    NOTE: This mode will only check the given casing then lowercase
 
     <repository>    The repository to test, can be like:
 
                     git://github.com/robertkrimen/App-GitHub-FindRepository.git
                     robertkrimen/App-GitHub-FindRepository.git
                     robertkrimen,App-GitHub-FindRepository
+
+For example:
+
+    github-find-repository --getter curl robertkrimen,aPp-giTHuB-findRepOsitory
 
 _END_
 
@@ -158,16 +188,109 @@ sub pinger {
     return $ENV{GH_FR_PINGER} || _find_in_path 'git-ls-remote' || _find_in_path 'git-peek-remote';
 }
 
-sub find {
+sub _get_by_LWP {
     my $self = shift;
-    my $repository = shift;
-    my $pinger = shift || $self->pinger;
+    return sub {
+        my $url = shift;
+        my $agent = LWP::UserAgent->new;
+        my $response = $agent->get( $url );
+        die $response->status_line, "\n" unless $response->is_success;
+        return $response->decoded_content;
+    };
+}
 
+sub _get_by_curl {
+    my $self = shift;
+    my $curl = shift;
+    return sub {
+        my $url = shift;
+        return `$curl -s -L $url`;
+    };
+}
+sub getter {
+    my $self = shift;
+    my $getter = shift;
+
+    return $getter if ref $getter eq 'CODE';
+
+    $getter = 'LWP' unless $getter;
+        
+    die "Oh my god no!\n" if $getter eq '^';
+
+    my $command;
+    if ($getter =~ m/^LWP$/i && eval "require LWP::UserAgent") {
+        return $self->_get_by_LWP;
+    }
+    elsif ($command = _find_in_path 'curl') {
+        return $self->_get_by_curl( $command );
+    }
+
+    return undef;
+}
+
+sub normalize_repository($) {
+    my $repository = shift;
     $repository =~ s/ //g;
     $repository =~ s/,/\//g;
     $repository = "$repository.git" unless $repository =~ m/\.git$/;
     $repository = "github.com/$repository" unless $repository =~ m/github\.com/;
     $repository = "git://$repository" unless $repository =~ m/git:\/\//;
+    return $repository;
+}
+
+sub find {
+    my $self = shift;
+    my $repository = shift;
+    my %given = @_;
+    my $getter = $self->getter( $given{getter} );
+    my $pinger = $given{pinger};
+
+    die "No repository given\n" unless defined $repository && length $repository;
+    if (! $getter ) {
+        warn "Unable to use/find LWP or curl\n";
+        warn "Falling back to git protocol\n";
+        return $self->find_by_git( $repository, pinger => $pinger );
+    }
+
+    my $base = normalize_repository $repository;
+    $base =~ s!^git://github.com/!!;
+    $base =~ s!\.git!!;
+
+    my $url = "http://github.com/$base";
+
+    my $content;
+    eval {
+        $content = $getter->( $url );
+    };
+    unless ($content) {
+        my $error = $@ || "Unknown error";
+        chomp $error;
+        warn "Failed GET $url since: $error\n";
+        warn "Falling back to git protocol\n";
+        return $self->find_by_git( $repository, pinger => $pinger );
+    }
+
+    my ($canonical) = $content =~ m/\/($base)\//i;
+
+    unless ($canonical) {
+        warn "Failed to find \"/$base/\" in content of size ", length $content, "\n";
+        warn "Falling back to git protocol\n";
+        return $self->find_by_git( $repository, pinger => $pinger );
+    }
+
+    $repository = "git://github.com/$canonical.git"
+}
+
+sub find_by_git {
+    my $self = shift;
+    my $repository = shift;
+    my %given = @_;
+    my $pinger = $given{pinger} || $self->pinger;
+
+    die "No repository given\n" unless defined $repository && length $repository;
+    die "No pinger!\n" unless $pinger;
+
+    $repository = normalize_repository $repository;
 
     return $repository if !system( "$pinger $repository 1>/dev/null 2>/dev/null" );
     
@@ -182,16 +305,14 @@ sub find {
 sub run {
     my $self = shift;
     
-    my $pinger;
+    my ($getter, $pinger, $git_protocol);
     GetOptions(
+        'getter=s' => \$getter,
         'pinger=s' => \$pinger,
+        'git-protocol' => \$git_protocol,
     );
 
     $pinger = $self->pinger unless $pinger;
-
-    do_usage <<_END_ unless defined $pinger;
-$0: No pinger given and couldn't find git-ls-remote or git-peek-remote in \$PATH
-_END_
 
     my $repository = join '', @ARGV;
 
@@ -199,10 +320,28 @@ _END_
 $0: You need to specify a repository
 _END_
 
-    {
-        my $repository = $self->find( $repository, $pinger );
+    eval {
+        my $repository = $repository;
+        if ($git_protocol) {
+            $repository = $self->find_by_git( $repository, pinger => $pinger );
+        }
+        else {
+            $repository = $self->find( $repository, getter => $getter, pinger => $pinger );
+        }
 
         do_found $repository if $repository;
+    };
+    if ($@ =~ m/No pinger!/) {
+        do_usage <<_END_;
+$0: No pinger given and couldn't find git-ls-remote or git-peek-remote in \$PATH
+_END_
+    }
+    elsif ($@) {
+        my $error = $@;
+        chomp $error;
+        do_usage <<_END_;
+$0: There was an error: $error
+_END_
     }
 
     do_not_found $repository;

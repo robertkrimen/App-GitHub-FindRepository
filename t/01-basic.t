@@ -13,7 +13,14 @@ use App::GitHub::FindRepository;
 
 is( App::GitHub::FindRepository->find( 'robertkrimen,DBIx-Deploy' ), 'git://github.com/robertkrimen/dbix-deploy.git' );
 is( App::GitHub::FindRepository->find( 'git://github.com/robertkrimen/Algorithm-BestChoice.git' ), 'git://github.com/robertkrimen/Algorithm-BestChoice.git' );
-is( App::GitHub::FindRepository->find( 'git://github.com/robertkrimen/Algorithm-bestChoice.git' ), undef );
+is( App::GitHub::FindRepository->find( 'git://github.com/robertkrimen/Algorithm-bestChoice.git' ), 'git://github.com/robertkrimen/Algorithm-BestChoice.git' );
+is( App::GitHub::FindRepository->find( 'robertkrimen,Algorithm-bestChoice' ), 'git://github.com/robertkrimen/Algorithm-BestChoice.git' );
 is( App::GitHub::FindRepository->find( 'robertkrimen/Algorithm-BestChoice.git' ), 'git://github.com/robertkrimen/Algorithm-BestChoice.git' );
 is( App::GitHub::FindRepository->find( 'robertkrimen/Algorithm-BestChoice' ), 'git://github.com/robertkrimen/Algorithm-BestChoice.git' );
 is( App::GitHub::FindRepository->find( 'github.com/robertkrimen/Algorithm-BestChoice' ), 'git://github.com/robertkrimen/Algorithm-BestChoice.git' );
+is( App::GitHub::FindRepository->find_by_git( 'git://github.com/robertkrimen/Algorithm-bestChoice.git' ), undef );
+is( `script/github-find-repository robertkrimen,DBIx-Deploy`, "git://github.com/robertkrimen/dbix-deploy.git\n" );
+is( `script/github-find-repository git://github.com/robertkrimen/alGorithm-bestChoIce.git`, "git://github.com/robertkrimen/Algorithm-BestChoice.git\n" );
+is( `script/github-find-repository robertkrimen,DBIx-Deploy --getter curl`, "git://github.com/robertkrimen/dbix-deploy.git\n" );
+is( `script/github-find-repository robertkrimen,DBIx-Deploy --getter LWP`, "git://github.com/robertkrimen/dbix-deploy.git\n" );
+is( `script/github-find-repository robertkrimen,DBIx-Deploy --getter ^ --git-protocol`, "git://github.com/robertkrimen/dbix-deploy.git\n" );

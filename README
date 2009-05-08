@@ -3,7 +3,7 @@ NAME
     for a GitHub repository
 
 VERSION
-    Version 0.02
+    Version 0.03
 
 SYNOPSIS
         github-find-repository git://github.com/robertkrimen/Doc-Simply.git
@@ -26,25 +26,30 @@ DESCRIPTION
     names. Unfortunately, their git daemon will not find the right
     repository given the wrong case.
 
-    App::GitHub::FindRepository ("github-find-repository") will first
-    attempt to ping the mixed-case version, and, failing that, will attempt
-    to ping the lowercase version. It will return/print the valid repository
-    url, if any
+    App::GitHub::FindRepository ("github-find-repository") will interrogate
+    the HTML page for the repository, looking for the "right" repository
+    name in a case insensitive manner
+
+    If LWP is not installed and curl is not available, then the finder will
+    fallback to using the git protocol (via git-ls-remote or
+    git-peek-remote). It will first attempt to ping the mixed-case version,
+    and, failing that, will attempt to ping the lowercase version.
+
+    In either case, it will return/print the valid repository url, if any
 
 CAVEAT
+    When finding via the git protocol, the following applies:
+
     Given a mixed-case repository, the find routine will try the mixed-case
     once, then the lowercase. It will not find anything else
 
-        github-find-repository robertkrimen/Doc-Simply
+        github-find-repository --git-protocol robertkrimen/Doc-Simply
 
     ...will work, as long as the real repository is
     "robertkrimen/Doc-Simply.git" or "robertkrimen/doc-simply.git"
 
     If the real repository is "robertkrimen/dOc-sImPlY.git" then the finder
     will NOT see it
-
-    ...that being said, let me know if you want/need something that is more
-    findy
 
 INSTALL
         cpan -i App::GitHub::FindRepository
@@ -56,9 +61,14 @@ USAGE
     A commandline application that will print out the the repository with
     the right casing
 
-        Usage: github-find-repository [--pinger <pinger>] <repository>
+        Usage: github-find-repository [--pinger <pinger>] [--getter <getter>] ... <repository>
 
             --pinger        The pinger to use (default is either git-ls-remote or git-peek-remote)
+
+            --getter        The getter to use (default is LWP then curl)
+
+            --git-protocol  Don't try to determine the repository by sniffing HTML, just use git://
+                            NOTE: This mode will only check the given casing then lowercase
 
             <repository>    The repository to test, can be like:
 
@@ -66,13 +76,24 @@ USAGE
                             robertkrimen/App-GitHub-FindRepository.git
                             robertkrimen,App-GitHub-FindRepository
 
-  $repository = AppGitHub::FindRepository->find( <repository> [, <pinger>] )
+        For example:
+
+            github-find-repository --getter curl robertkrimen,aPp-giTHuB-findRepOsitory
+
+  $repository = AppGitHub::FindRepository->find( <repository> [, pinger => <pinger>, getter => <getter>] )
     Given a mixed-case repository URI, it will return the version with the
     right case
 
+  $repository = AppGitHub::FindRepository->find_by_git( <repository> [, pinger => <pinger>] )
+    Given a mixed-case repository URI, it will return the version with the
+    right case, but only using the git protocol
+
+    NOTE: This method will only check the given casing then lowercase. See
+    CAVEAT
+
   A bash function as an alternative
     If you do not want to install App::GitHub::FindRepository, here is a
-    bash equivalent:
+    bash equivalent (using the git protocol, see CAVEAT):
 
         #!/bin/bash
 

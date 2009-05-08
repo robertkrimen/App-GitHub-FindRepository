@@ -70,7 +70,7 @@ You can also try using the bash script below if you need a quick-fix
 
 A commandline application that will print out the the repository with the right casing
 
-    Usage: github-find-repository [--pinger <pinger>] [--getter <getter>] ... <repository>
+    Usage: github-find-repository [--pinger <pinger> --getter <getter> --output <output>] ... <repository>
 
         --pinger        The pinger to use (default is either git-ls-remote or git-peek-remote)
 
@@ -78,6 +78,16 @@ A commandline application that will print out the the repository with the right 
 
         --git-protocol  Don't try to determine the repository by sniffing HTML, just use git://
                         NOTE: This mode will only check the given casing then lowercase
+
+        --output        One of: URL, base, name, public, private
+
+                        Given "http://github.com/robertkrimen/aPp-giTHub-findRepoSitory.git"
+
+                        URL      http://github.com/robertkrimen/App-GitHub-FindRepository.git
+                        public   git://github.com/robertkrimen/App-GitHub-FindRepository.git
+                        private  git\@github.com:robertkrimen/App-GitHub-FindRepository.git
+                        base     robertkrimen/App-GitHub-FindRepository
+                        name     App-GitHub-FindRepository
 
         <repository>    The repository to test, can be like:
 
@@ -88,7 +98,6 @@ A commandline application that will print out the the repository with the right 
     For example:
 
         github-find-repository --getter curl robertkrimen,aPp-giTHuB-findRepOsitory
-
 
 =head2 $repository = AppGitHub::FindRepository->find( <repository> [, pinger => <pinger>, getter => <getter>] )
 

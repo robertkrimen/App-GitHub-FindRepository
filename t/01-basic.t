@@ -24,3 +24,5 @@ is( `script/github-find-repository git://github.com/robertkrimen/alGorithm-bestC
 is( `script/github-find-repository robertkrimen,DBIx-Deploy --getter curl`, "git://github.com/robertkrimen/dbix-deploy.git\n" );
 is( `script/github-find-repository robertkrimen,DBIx-Deploy --getter LWP`, "git://github.com/robertkrimen/dbix-deploy.git\n" );
 is( `script/github-find-repository robertkrimen,DBIx-Deploy --getter ^ --git-protocol`, "git://github.com/robertkrimen/dbix-deploy.git\n" );
+is( App::GitHub::FindRepository->find( 'git@github.com/robertkrimen/aLgorithm-beStChoice.git' ), 'git@github.com/robertkrimen/Algorithm-BestChoice.git' );
+is( `script/github-find-repository git\@github.com/robertkrimen/dOc-SiMply.git --git-protocol`, "git\@github.com/robertkrimen/doc-simply.git\n" );

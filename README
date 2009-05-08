@@ -1,9 +1,9 @@
 NAME
-    App::GitHub::FindRepository - Determine the right case (mixed or lower)
-    for a GitHub repository
+    App::GitHub::FindRepository - Determine the right case for a GitHub
+    repository
 
 VERSION
-    Version 0.03
+    Version 0.04
 
 SYNOPSIS
         github-find-repository git://github.com/robertkrimen/Doc-Simply.git
@@ -27,8 +27,8 @@ DESCRIPTION
     repository given the wrong case.
 
     App::GitHub::FindRepository ("github-find-repository") will interrogate
-    the HTML page for the repository, looking for the "right" repository
-    name in a case insensitive manner
+    the repository home page (HTML), looking for the "right" repository name
+    in a case insensitive manner
 
     If LWP is not installed and curl is not available, then the finder will
     fallback to using the git protocol (via git-ls-remote or

@@ -9,11 +9,11 @@ App::GitHub::FindRepository - Determine the right case for a GitHub repository
 
 =head1 VERSION
 
-Version 0.03
+Version 0.04
 
 =cut
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 =head1 SYNOPSIS
 
@@ -37,7 +37,7 @@ our $VERSION = '0.03';
 GitHub recently made a change that now allows mixed-case repository names. Unfortunately, their git daemon
 will not find the right repository given the wrong case.
 
-L<App::GitHub::FindRepository> (C<github-find-repository>) will interrogate the HTML page for the repository,
+L<App::GitHub::FindRepository> (C<github-find-repository>) will interrogate the repository home page (HTML),
 looking for the "right" repository name in a case insensitive manner
 
 If LWP is not installed and curl is not available, then the finder will fallback to using the git protocol (via git-ls-remote or git-peek-remote).
@@ -230,17 +230,24 @@ sub getter {
 
 sub normalize_repository($) {
     my $repository = shift;
+    my $public = $repository !~ m/^\s*git\@/;
     $repository =~ s/ //g;
     $repository =~ s/,/\//g;
     $repository = "$repository.git" unless $repository =~ m/\.git$/;
     $repository = "github.com/$repository" unless $repository =~ m/github\.com/;
-    $repository = "git://$repository" unless $repository =~ m/git:\/\//;
+    $repository = "git://$repository" unless $repository =~ m/git(?::\/\/|@)/;
+    return ($repository, $public);
+}
+
+sub test_repository($) {
+    my $repository = shift;
+    $repository =~ s!^git@!git://!;
     return $repository;
 }
 
 sub find {
     my $self = shift;
-    my $repository = shift;
+    my $original_repository = my $repository = shift;
     my %given = @_;
     my $getter = $self->getter( $given{getter} );
     my $pinger = $given{pinger};
@@ -249,11 +256,11 @@ sub find {
     if (! $getter ) {
         warn "Unable to use/find LWP or curl\n";
         warn "Falling back to git protocol\n";
-        return $self->find_by_git( $repository, pinger => $pinger );
+        return $self->find_by_git( $original_repository, pinger => $pinger );
     }
 
-    my $base = normalize_repository $repository;
-    $base =~ s!^git://github.com/!!;
+    my ($base, $public) = normalize_repository $repository;
+    $base =~ s!^git(?:://|@)github.com/!!;
     $base =~ s!\.git!!;
 
     my $url = "http://github.com/$base";
@@ -267,7 +274,7 @@ sub find {
         chomp $error;
         warn "Failed GET $url since: $error\n";
         warn "Falling back to git protocol\n";
-        return $self->find_by_git( $repository, pinger => $pinger );
+        return $self->find_by_git( $original_repository, pinger => $pinger );
     }
 
     my ($canonical) = $content =~ m/\/($base)\//i;
@@ -275,10 +282,12 @@ sub find {
     unless ($canonical) {
         warn "Failed to find \"/$base/\" in content of size ", length $content, "\n";
         warn "Falling back to git protocol\n";
-        return $self->find_by_git( $repository, pinger => $pinger );
+        return $self->find_by_git( $original_repository, pinger => $pinger );
     }
 
-    $repository = "git://github.com/$canonical.git"
+    $repository = "github.com/$canonical.git";
+    $repository = $public ? "git://$repository" : "git\@$repository";
+    return $repository;
 }
 
 sub find_by_git {
@@ -290,13 +299,16 @@ sub find_by_git {
     die "No repository given\n" unless defined $repository && length $repository;
     die "No pinger!\n" unless $pinger;
 
-    $repository = normalize_repository $repository;
+    my $public;
+    ($repository, $public) = normalize_repository $repository;
+    my $test_repository = test_repository $repository;
 
-    return $repository if !system( "$pinger $repository 1>/dev/null 2>/dev/null" );
+    return $repository if !system( "$pinger $test_repository 1>/dev/null 2>/dev/null" );
     
     if ($repository =~ m/[A-Z]/) {
         my $repository = lc $repository;
-        return $repository if !system( "$pinger $repository 1>/dev/null 2>/dev/null" );
+        my $test_repository = test_repository $repository;
+        return $repository if !system( "$pinger $test_repository 1>/dev/null 2>/dev/null" );
     }
 
     return undef;

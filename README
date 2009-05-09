@@ -110,11 +110,11 @@ USAGE
 ::Repository
     The repository object that "->find" and "->find_by_git" return
 
+    The object will stringify via the "->url" method
+
   $repository->url
     The URL (URI) of the repository (depends on what the object was
     instantiated with)
-
-    The object will stringify via the "->url" method
 
   $repository->public
     The public github clone URL:

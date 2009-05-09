@@ -119,11 +119,11 @@ NOTE: This method will only check the given casing then lowercase. See CAVEAT
 
 The repository object that C<< ->find >> and C<< ->find_by_git >> return
 
+The object will stringify via the C<< ->url >> method
+
 =head2 $repository->url
 
 The URL (URI) of the repository (depends on what the object was instantiated with)
-
-The object will stringify via the C<< ->url >> method
 
 =head2 $repository->public
 

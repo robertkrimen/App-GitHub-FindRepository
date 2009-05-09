@@ -391,7 +391,7 @@ _END_
 
     if ($output) {
         $output = lc $output;
-        $output =~ m/^(base|public|private|url|name)$/ or do_usage <<_END_;
+        $output =~ m/^(base|public|private|url|name|home)$/ or do_usage <<_END_;
 $0: Unrecogonized output option "$output"
 _END_
     }

@@ -61,7 +61,7 @@ USAGE
     A commandline application that will print out the the repository with
     the right casing
 
-        Usage: github-find-repository [--pinger <pinger> --getter <getter> --output <output>] ... <repository>
+        Usage: github-find-repository [...] <repository>
 
             --pinger        The pinger to use (default is either git-ls-remote or git-peek-remote)
 
@@ -79,6 +79,7 @@ USAGE
                             private  git\@github.com:robertkrimen/App-GitHub-FindRepository.git
                             base     robertkrimen/App-GitHub-FindRepository
                             name     App-GitHub-FindRepository
+                            home     http://github.com/robertkrimen/App-GitHub-FindRepository
 
             <repository>    The repository to test, can be like:
 
@@ -90,18 +91,57 @@ USAGE
 
             github-find-repository --getter curl robertkrimen,aPp-giTHuB-findRepOsitory
 
-  $repository = AppGitHub::FindRepository->find( <repository> [, pinger => <pinger>, getter => <getter>] )
+  $repository = AppGitHub::FindRepository->find( <repository> [, ...] )
     Given a mixed-case repository URI, it will return the version with the
     right case
 
-  $repository = AppGitHub::FindRepository->find_by_git( <repository> [, pinger => <pinger>] )
+        getter  The method to use to access the repository home page (HTML)
+        pinger  The pinger to use to access the repository via the git protocol
+
+  $repository = AppGitHub::FindRepository->find_by_git( <repository> [, ...] )
+        pinger  The pinger to use to access the repository via the git protocol
+
     Given a mixed-case repository URI, it will return the version with the
     right case, but only using the git protocol
 
     NOTE: This method will only check the given casing then lowercase. See
     CAVEAT
 
-  A bash function as an alternative
+::Repository
+    The repository object that "->find" and "->find_by_git" return
+
+  $repository->url
+    The URL (URI) of the repository (depends on what the object was
+    instantiated with)
+
+    The object will stringify via the "->url" method
+
+  $repository->public
+    The public github clone URL:
+
+        git://github.com/<base>.git
+
+  $repository->private
+    The private github clone URL:
+
+        git@github.com:<base>.git
+
+  $repository->base
+    The user/project part of the repository path (WITHOUT the .git suffix):
+
+        robertkrimen/App-GitHub-FindRepository
+
+  $repository->name
+    The name of the project:
+
+        App-GitHub-FindRepository
+
+  $repository->home
+    The home page of the project on GitHub:
+
+        http://github.com/<base> # Will redirect to .../tree/master
+
+A bash function as an alternative
     If you do not want to install App::GitHub::FindRepository, here is a
     bash equivalent (using the git protocol, see CAVEAT):
 
